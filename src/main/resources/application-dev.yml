@@ -1,0 +1,16 @@
+spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/scheduling_db
+      database: scheduling_db
+      auto-index-creation: true
+
+app:
+  environment: dev
+
+logging:
+  level:
+    root: DEBUG
