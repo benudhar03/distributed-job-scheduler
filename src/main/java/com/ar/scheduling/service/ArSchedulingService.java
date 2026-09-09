@@ -269,8 +269,7 @@ public class ArSchedulingService {
     private void validateTaskNameUniqueness(ScheduleRequest request) {
         List<TaskStatus> excludedStatuses =
                 Arrays.asList(TaskStatus.CANCELLED, TaskStatus.COMPLETED);
-        if (scheduledTaskRepository
-                .existsByTaskNameAndStatusNotIn(request.taskName(), excludedStatuses)) {
+        if (scheduledTaskRepository.existsByTaskNameAndStatusNotIn(request.taskName(), excludedStatuses)) {
             throw new TaskValidationException("Task with name '" +
                     request.taskName() + "' already exists and is active"
             );

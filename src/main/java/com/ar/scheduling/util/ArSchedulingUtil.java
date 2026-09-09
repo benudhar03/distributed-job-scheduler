@@ -22,34 +22,20 @@ public class ArSchedulingUtil {
     public void validateScheduleRequest(ScheduleRequest request) {
 
         if (request.scheduledTime().isBefore(LocalDateTime.now())) {
-            throw new TaskValidationException(
-                    "Scheduled time must be in the future"
-            );
+            throw new TaskValidationException("Scheduled time must be in the future");
         }
 
         if (request.scheduleType() == ScheduleType.CRON_BASED &&
-                (request.cronExpression() == null ||
-                        request.cronExpression().isBlank())) {
-
-            throw new TaskValidationException(
-                    "Cron expression is required for cron-based schedules"
-            );
+                (request.cronExpression() == null || request.cronExpression().isBlank())) {
+            throw new TaskValidationException("Cron expression is required for cron-based schedules");
         }
 
-        if (request.scheduleType() == ScheduleType.RECURRING &&
-                request.endTime() == null) {
-
-            throw new TaskValidationException(
-                    "End time is required for recurring schedules"
-            );
+        if (request.scheduleType() == ScheduleType.RECURRING && request.endTime() == null) {
+            throw new TaskValidationException("End time is required for recurring schedules");
         }
 
-        if (request.maxRetries() != null &&
-                request.maxRetries() < 0) {
-
-            throw new TaskValidationException(
-                    "Max retries cannot be negative"
-            );
+        if (request.maxRetries() != null && request.maxRetries() < 0) {
+            throw new TaskValidationException("Max retries cannot be negative");
         }
     }
 
@@ -59,9 +45,7 @@ public class ArSchedulingUtil {
      * @param task    existing scheduled task
      * @param request update request
      */
-    public void validateUpdateRequest(
-            ScheduledTask task,
-            ScheduleUpdateRequest request) {
+    public void validateUpdateRequest(ScheduledTask task, ScheduleUpdateRequest request) {
 
         if (task.getStatus() == TaskStatus.IN_PROGRESS) {
             throw new TaskValidationException(
@@ -69,20 +53,12 @@ public class ArSchedulingUtil {
             );
         }
 
-        if (task.getStatus() == TaskStatus.COMPLETED ||
-                task.getStatus() == TaskStatus.CANCELLED) {
-
-            throw new TaskValidationException(
-                    "Cannot update task that is completed or cancelled"
-            );
+        if (task.getStatus() == TaskStatus.COMPLETED || task.getStatus() == TaskStatus.CANCELLED) {
+            throw new TaskValidationException("Cannot update task that is completed or cancelled");
         }
 
-        if (request.scheduledTime() != null &&
-                request.scheduledTime().isBefore(LocalDateTime.now())) {
-
-            throw new TaskValidationException(
-                    "Scheduled time must be in the future"
-            );
+        if (request.scheduledTime() != null && request.scheduledTime().isBefore(LocalDateTime.now())) {
+            throw new TaskValidationException("Scheduled time must be in the future");
         }
     }
 
@@ -116,9 +92,7 @@ public class ArSchedulingUtil {
      * @return true when the task should be triggered immediately
      */
     public boolean shouldTriggerImmediately(ScheduledTask task) {
-
-        return task.getScheduledTime()
-                .isBefore(LocalDateTime.now().plusMinutes(1))
+        return task.getScheduledTime().isBefore(LocalDateTime.now().plusMinutes(1))
                 && task.getStatus() == TaskStatus.PENDING;
     }
 }
