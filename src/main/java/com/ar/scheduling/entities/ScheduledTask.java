@@ -16,9 +16,18 @@ import java.util.UUID;
 
 @Data
 @Document(collection = "scheduled_tasks")
-@CompoundIndex(name = "idx_taskname_status", def = "{'taskName': 1, 'status': 1}", background = true)
-@CompoundIndex(name = "idx_taskname_tasktype_status", def = "{'taskName': 1, 'taskType': 1, 'status': 1}", background = true)
-@CompoundIndex(name = "idx_status_scheduled_time", def = "{'status': 1, 'scheduledTime': 1}", background = true)
+@CompoundIndex(
+        name = "idx_taskname_status",
+        def = "{'taskName': 1, 'status': 1}"
+)
+@CompoundIndex(
+        name = "idx_taskname_tasktype_status",
+        def = "{'taskName': 1, 'taskType': 1, 'status': 1}"
+)
+@CompoundIndex(
+        name = "idx_status_scheduled_time",
+        def = "{'status': 1, 'scheduledTime': 1}"
+)
 public class ScheduledTask {
 
     @Id
@@ -47,13 +56,21 @@ public class ScheduledTask {
     private LocalDateTime completedTime;
 
     private String payload;
+
     private Map<String, String> metadata;
+
     private Integer retryCount = 0;
+
     private Integer maxRetries = 3;
+
     private String errorMessage;
+
     private String cronExpression;
+
     private LocalDateTime endTime;
+
     private String priority;
+
     private String createdBy;
 
     @CreatedDate
@@ -68,5 +85,4 @@ public class ScheduledTask {
         this.retryCount = 0;
         this.maxRetries = 3;
     }
-
 }
