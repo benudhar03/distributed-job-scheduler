@@ -1,0 +1,62 @@
+server:
+  port: 9080
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: distributed-job-scheduler
+
+  # --- MongoDB (spring-boot-starter-data-mongodb) ---
+  data:
+    mongodb:
+      host: localhost
+      port: 27017
+      database: ar_scheduling_db
+      # Alternatively, use a single URI instead of host/port/database:
+      # uri: mongodb://localhost:27017/ar_scheduling_db
+      auto-index-creation: true
+
+  # --- Kafka (spring-kafka) ---
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+    consumer:
+      group-id: ar-scheduling-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      properties:
+        spring.json.trusted.packages: "com.ar.scheduling.dto.kafka"
+
+# --- Actuator + Prometheus (spring-boot-starter-actuator, micrometer-registry-prometheus) ---
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+# --- springdoc-openapi (springdoc-openapi-starter-webmvc-ui) ---
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+
+logging:
+  level:
+    root: INFO
+    com.ar.scheduling: DEBUG
+    org.springframework.kafka: WARN
+    org.mongodb.driver: WARN
