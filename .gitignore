@@ -1,33 +1,81 @@
+# ================================
+# Maven
+# ================================
 HELP.md
 target/
 .mvn/wrapper/maven-wrapper.jar
+
+# Keep nested source-level target directories ignored
 !**/src/main/**/target/
 !**/src/test/**/target/
 
-### STS ###
-.apt_generated
+
+# ================================
+# Spring Tool Suite / Eclipse
+# ================================
+.apt_generated/
 .classpath
 .factorypath
 .project
-.settings
+.settings/
 .springBeans
-.sts4-cache
+.sts4-cache/
 
-### IntelliJ IDEA ###
-.idea
+
+# ================================
+# IntelliJ IDEA
+# ================================
+.idea/
 *.iws
 *.iml
 *.ipr
 
-### NetBeans ###
+
+# ================================
+# NetBeans
+# ================================
 /nbproject/private/
 /nbbuild/
 /dist/
 /nbdist/
 /.nb-gradle/
+
+
+# ================================
+# Gradle / Build
+# ================================
 build/
+
+# Keep nested source-level build directories ignored
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-### VS Code ###
+
+# ================================
+# Visual Studio Code
+# ================================
 .vscode/
+
+
+# ================================
+# OS Generated Files
+# ================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+
+# ================================
+# Logs
+# ================================
+*.log
+
+
+# ================================
+# Temporary Files
+# ================================
+*.tmp
+*.temp
+*.swp
+*.swo
+*~

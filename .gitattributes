@@ -1,2 +1,5 @@
+# Maven Wrapper
 /mvnw text eol=lf
+
+# Windows command scripts
 *.cmd text eol=crlf
