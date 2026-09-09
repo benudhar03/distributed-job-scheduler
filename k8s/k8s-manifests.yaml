@@ -1,231 +1,238 @@
-# -------------------------
-# Namespace
-# -------------------------
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: ar-scheduling
+  name: distributed-job-scheduler
   labels:
-    name: ar-scheduling
+    app.kubernetes.io/name: distributed-job-scheduler
+    app.kubernetes.io/part-of: distributed-job-scheduler
+
 ---
-# -------------------------
-# Secrets (store sensitive values)
-# Replace the base64 values or create via kubectl create secret generic ...
-# Example (recommended):
-# kubectl -n ar-scheduling create secret generic ar-scheduling-secret \
-#   --from-literal=mongo.username=<user> --from-literal=mongo.password=<pass> \
-#   --from-literal=kafka.username=<user> --from-literal=kafka.password=<pass>
-# -------------------------
 apiVersion: v1
 kind: Secret
 metadata:
-  name: ar-scheduling-secret
-  namespace: ar-scheduling
+  name: distributed-job-scheduler-secret
+  namespace: distributed-job-scheduler
+  labels:
+    app.kubernetes.io/name: distributed-job-scheduler
 type: Opaque
-data:
-  # Base64-encoded placeholders (replace these)
-  mongo.username: bXltb25nby11c2Vy
-  mongo.password: c29tZS1zZWNyZXQtU3RyaW5n
-  kafka.username: a3FfdXNlcg==
-  kafka.password: c2VjdXJlLWthZmthLXBhc3M=
+stringData:
+  mongo.username: "REPLACE_ME"
+  mongo.password: "REPLACE_ME"
+  kafka.username: "REPLACE_ME"
+  kafka.password: "REPLACE_ME"
+
 ---
-# -------------------------
-# ConfigMap (non-sensitive configuration)
-# Use Spring Boot relaxed binding environment variables.
-# Keys here will become environment variables in the Deployment.
-# -------------------------
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: ar-scheduling-config
-  namespace: ar-scheduling
+  name: distributed-job-scheduler-config
+  namespace: distributed-job-scheduler
+  labels:
+    app.kubernetes.io/name: distributed-job-scheduler
 data:
-  # Spring profile to use by default (can be overridden)
   SPRING_PROFILES_ACTIVE: "prod"
+  SPRING_APPLICATION_NAME: "distributed-job-scheduler"
 
-  # Kafka/Mongo hosts (non-sensitive parts)
-  SPRING_KAFKA_BOOTSTRAP_SERVERS: "prod-kafka.company.com:9092"
   SPRING_DATA_MONGODB_URI: "mongodb://prod-mongo.company.com:27017/scheduling_db"
 
-  # Spring application name (optional)
-  SPRING_APPLICATION_NAME: "ar-scheduling-service"
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: "prod-kafka.company.com:9092"
 
-  # App specific properties (relaxed-binding; Spring Boot will map)
+  SPRING_KAFKA_PROPERTIES_SECURITY_PROTOCOL: "SASL_SSL"
+  SPRING_KAFKA_PROPERTIES_SASL_MECHANISM: "PLAIN"
+
   APP_SCHEDULING_MAX_FUTURE_SCHEDULE_DAYS: "365"
   APP_SCHEDULING_MAX_RETRY_ATTEMPTS: "3"
   APP_SCHEDULING_RETRY_DELAY_MS: "5000"
 
-  # Kafka topic names (exposed here for visibility/change without rebuilding image)
-  APP_KAFKA_TOPICS_TASK_EXECUTION: "ar-task-execution-topic"
-  APP_KAFKA_TOPICS_TASK_COMPLETION: "ar-task-completion-topic"
-  APP_KAFKA_TOPICS_TASK_STATUS_UPDATE: "ar-task-status-update-topic"
-  APP_KAFKA_TOPICS_TASK_RETRY: "ar-task-retry-topic"
+  APP_KAFKA_TOPICS_TASK_EXECUTION: "distributed-job-scheduler-task-execution"
+  APP_KAFKA_TOPICS_TASK_COMPLETION: "distributed-job-scheduler-task-completion"
+  APP_KAFKA_TOPICS_TASK_STATUS_UPDATE: "distributed-job-scheduler-task-status-update"
+  APP_KAFKA_TOPICS_TASK_RETRY: "distributed-job-scheduler-task-retry"
 
-  # Management/actuator path (if you want to override)
   MANAGEMENT_ENDPOINTS_WEB_BASE_PATH: "/actuator"
 
-  # JVM options (merge with container JAVA_OPTS if needed)
-  JAVA_OPTS: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75 -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
 ---
-# -------------------------
-# Deployment
-# -------------------------
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ar-scheduling-deployment
-  namespace: ar-scheduling
+  name: distributed-job-scheduler
+  namespace: distributed-job-scheduler
   labels:
-    app: ar-scheduling
+    app.kubernetes.io/name: distributed-job-scheduler
+    app.kubernetes.io/component: scheduler
+    app.kubernetes.io/part-of: distributed-job-scheduler
 spec:
+
   replicas: 3
+
   selector:
     matchLabels:
-      app: ar-scheduling
+      app.kubernetes.io/name: distributed-job-scheduler
+
   strategy:
     type: RollingUpdate
     rollingUpdate:
       maxUnavailable: 1
       maxSurge: 1
+
   template:
+
     metadata:
       labels:
-        app: ar-scheduling
+        app.kubernetes.io/name: distributed-job-scheduler
+        app.kubernetes.io/component: scheduler
+
     spec:
-      # Optional serviceAccountName if you need RBAC
-      # serviceAccountName: ar-scheduling-sa
+
       securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
         fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+
       containers:
-        - name: ar-scheduling
-          # Replace with your actual image (registry/path:tag)
-          image: registry.example.com/ar-scheduling-service:latest
+
+        - name: distributed-job-scheduler
+
+          image: registry.example.com/distributed-job-scheduler:1.0.0
+
           imagePullPolicy: IfNotPresent
+
           ports:
             - name: http
               containerPort: 8080
-          # Resources - tune as per your environment
+              protocol: TCP
+
+          envFrom:
+
+            - configMapRef:
+                name: distributed-job-scheduler-config
+
+          env:
+
+            - name: SPRING_DATA_MONGODB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: distributed-job-scheduler-secret
+                  key: mongo.username
+
+            - name: SPRING_DATA_MONGODB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: distributed-job-scheduler-secret
+                  key: mongo.password
+
+            - name: SPRING_KAFKA_PROPERTIES_SASL_JAAS_CONFIG
+              valueFrom:
+                secretKeyRef:
+                  name: distributed-job-scheduler-secret
+                  key: kafka.jaas.config
+
+            - name: JAVA_TOOL_OPTIONS
+              value: >-
+                -XX:+UseContainerSupport
+                -XX:MaxRAMPercentage=75.0
+                -XX:+UseG1GC
+                -XX:MaxGCPauseMillis=200
+
           resources:
             requests:
               cpu: "250m"
               memory: "512Mi"
+
             limits:
               cpu: "1000m"
               memory: "2Gi"
-          # Environment from ConfigMap and Secret
-          envFrom:
-            - configMapRef:
-                name: ar-scheduling-config
-            - secretRef:
-                name: ar-scheduling-secret
-          # If you want custom mappings or non-relaxed names, declare individually:
-          env:
-            # Map mongo credentials into Spring expected properties using relaxed binding:
-            - name: SPRING_DATA_MONGODB_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: ar-scheduling-secret
-                  key: mongo.username
-            - name: SPRING_DATA_MONGODB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: ar-scheduling-secret
-                  key: mongo.password
 
-            # (Optional) Pass the management base path
-            - name: MANAGEMENT_ENDPOINTS_WEB_BASE_PATH
-              valueFrom:
-                configMapKeyRef:
-                  name: ar-scheduling-config
-                  key: MANAGEMENT_ENDPOINTS_WEB_BASE_PATH
-
-            # Example: override spring.kafka properties with secret-backed user/pass if required
-            - name: SPRING_KAFKA_PROPERTIES_SASL_JAAS_CONFIG
-              valueFrom:
-                secretKeyRef:
-                  name: ar-scheduling-secret
-                  key: kafka.username
-              # Note: If you need a combined SASL string, create it via a pre-deploy script or use a mounted file.
-
-            # Ensure JAVA_OPTS present
-            - name: JAVA_TOOL_OPTIONS
-              valueFrom:
-                configMapKeyRef:
-                  name: ar-scheduling-config
-                  key: JAVA_OPTS
-
-          # Liveness / Readiness probes using actuator
           livenessProbe:
             httpGet:
-              path: /actuator/health
+              path: /actuator/health/liveness
               port: http
             initialDelaySeconds: 30
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 3
+
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
               port: http
-            initialDelaySeconds: 10
+            initialDelaySeconds: 20
             periodSeconds: 15
-            timeoutSeconds: 3
+            timeoutSeconds: 5
             failureThreshold: 5
 
-          # If you want to pass JVM opts to container entrypoint, image should honor JAVA_TOOL_OPTIONS / JAVA_OPTS
-          # If the JAR expects a config file path, set SPRING_CONFIG_LOCATION env var here (example commented)
-          # - name: SPRING_CONFIG_LOCATION
-          #   value: "classpath:/,file:/config/"
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
 
-          # Security: run as non-root at container level
           securityContext:
-            runAsUser: 1000
-            runAsGroup: 1000
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
 
-          # Optional: mount volumes (e.g., for log persistence or external configs)
-          # volumeMounts:
-          #   - name: app-logs
-          #     mountPath: /var/log/ar-scheduling
-      # volumes:
-      #   - name: app-logs
-      #     emptyDir: {}
 ---
-# -------------------------
-# Service (ClusterIP)
-# -------------------------
 apiVersion: v1
 kind: Service
 metadata:
-  name: ar-scheduling-service
-  namespace: ar-scheduling
+  name: distributed-job-scheduler
+  namespace: distributed-job-scheduler
   labels:
-    app: ar-scheduling
+    app.kubernetes.io/name: distributed-job-scheduler
 spec:
   type: ClusterIP
+
   ports:
-    - port: 8080
+    - name: http
+      port: 8080
       targetPort: http
       protocol: TCP
-      name: http
+
   selector:
-    app: ar-scheduling
+    app.kubernetes.io/name: distributed-job-scheduler
+
 ---
-# -------------------------
-# (Optional) Horizontal Pod Autoscaler example
-# -------------------------
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: ar-scheduling-hpa
-  namespace: ar-scheduling
+  name: distributed-job-scheduler-hpa
+  namespace: distributed-job-scheduler
+  labels:
+    app.kubernetes.io/name: distributed-job-scheduler
 spec:
+
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: ar-scheduling-deployment
+    name: distributed-job-scheduler
+
   minReplicas: 3
   maxReplicas: 10
+
+  behavior:
+
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 60
+
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 25
+          periodSeconds: 60
+
   metrics:
     - type: Resource
       resource:
@@ -233,3 +240,10 @@ spec:
         target:
           type: Utilization
           averageUtilization: 60
+
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 70
